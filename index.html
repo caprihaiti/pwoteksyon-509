@@ -357,8 +357,8 @@ textarea.desc{width:100%;background:var(--surface);border:1px solid var(--line);
           <div class="mappanel" id="map-deptdetail" hidden>
             <button class="back" id="deptBackBtn">‹ <span data-i18n="back">Retounen</span></button>
             <h2 id="deptDetailName" style="font-family:var(--ui);font-weight:800;font-size:1.1rem;margin-bottom:12px"></h2>
-            <div class="map-card" style="padding:18px;text-align:center">
-              <div id="deptDetailPinWrap"></div>
+            <div class="map-card" style="padding:10px">
+              <canvas id="deptZoomCanvas" width="400" height="260" style="width:100%;height:auto;display:block;border-radius:12px"></canvas>
             </div>
             <div class="home-grid" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
               <div class="home-tile" style="background:var(--flag-red);border:0"><span style="font:800 1.3rem var(--ui);color:#fff" id="deptStatTotal">0</span><span style="color:#fff" data-i18n="statTotal">Siyalman</span></div>
@@ -367,6 +367,7 @@ textarea.desc{width:100%;background:var(--surface);border:1px solid var(--line);
             </div>
             <div class="recent-head"><h3 id="deptRecentTitle" data-i18n="recentAlertsDept">Dènye alèt yo</h3></div>
             <div class="mini-list" id="dept-mini-list"></div>
+            <div class="instr" style="margin-top:14px;--ink:#16232C"><b data-i18n="deptTipTitle">🛡️ Konsèy pou zòn nan</b><span data-i18n="deptTipBody">Evite deplasman ki pa nesesè nan zòn ki gen gwo risk. Suiv rekòmandasyon otorite yo.</span></div>
             <p class="card-fictif" style="margin-top:10px" data-i18n="fictifShort">Egzanp fiktif</p>
           </div>
         </div>
@@ -580,7 +581,8 @@ textarea.desc{width:100%;background:var(--surface);border:1px solid var(--line);
       wizardBackHome:"Retounen Akèy",
       sumCat:"Kalite",sumLoc:"Kote",sumDesc:"Deskripsyon",sumNone:"Pa presize",
       accountTitle:"Kont ou",accountNote:"Ou pa bezwen kreye yon kont pou siyale yon ensidan oswa gade alèt yo. Fonksyon \"kont\" (istorik siyalman pa w, preferans) ap vini nan yon faz ilteryè.",
-      deptEmpty:"Pa gen siyalman aktif nan zòn sa a nan demo a."
+      deptEmpty:"Pa gen siyalman aktif nan zòn sa a nan demo a.",
+      deptTipTitle:"🛡️ Konsèy pou zòn nan",deptTipBody:"Evite deplasman ki pa nesesè nan zòn ki gen gwo risk. Suiv rekòmandasyon otorite yo."
     },
     fr:{tagline:"Programme d'alerte CAPRI",demoFlag:"⚠ Exemple fictif — aucun signalement réel",filterAll:"Tous",filterSignal:"Signalement",filterChecking:"Vérification",filterClosed:"Clôturé",feedTitle:"Derniers signalements",
       statusSignal:"Signalement — non vérifié",statusChecking:"En vérification",statusClosed:"Clôturé",zoneLabel:"Zone",fictifShort:"Exemple fictif",
@@ -633,7 +635,8 @@ textarea.desc{width:100%;background:var(--surface);border:1px solid var(--line);
       wizardBackHome:"Retour à l'accueil",
       sumCat:"Type",sumLoc:"Lieu",sumDesc:"Description",sumNone:"Non précisé",
       accountTitle:"Votre compte",accountNote:"Vous n'avez pas besoin de créer un compte pour signaler un incident ou consulter les alertes. La fonction « compte » (historique de vos signalements, préférences) arrivera dans une phase ultérieure.",
-      deptEmpty:"Aucun signalement actif dans cette zone dans la démo."
+      deptEmpty:"Aucun signalement actif dans cette zone dans la démo.",
+      deptTipTitle:"🛡️ Conseil pour cette zone",deptTipBody:"Évitez les déplacements non nécessaires dans une zone à haut risque. Suivez les recommandations des autorités."
     },
     en:{tagline:"CAPRI alert program",demoFlag:"⚠ Fictional example — no real report",filterAll:"All",filterSignal:"Reported",filterChecking:"Verifying",filterClosed:"Closed",feedTitle:"Latest reports",
       statusSignal:"Report — unverified",statusChecking:"Under verification",statusClosed:"Closed",zoneLabel:"Zone",fictifShort:"Fictional example",
@@ -686,7 +689,8 @@ textarea.desc{width:100%;background:var(--surface);border:1px solid var(--line);
       wizardBackHome:"Back to home",
       sumCat:"Type",sumLoc:"Location",sumDesc:"Description",sumNone:"Not specified",
       accountTitle:"Your account",accountNote:"You don't need to create an account to report an incident or view alerts. The \"account\" feature (your report history, preferences) is coming in a later phase.",
-      deptEmpty:"No active report in this zone in the demo."
+      deptEmpty:"No active report in this zone in the demo.",
+      deptTipTitle:"🛡️ Tip for this zone",deptTipBody:"Avoid unnecessary travel in a high-risk zone. Follow the authorities' recommendations."
     }
   };
 
@@ -940,13 +944,43 @@ textarea.desc{width:100%;background:var(--surface);border:1px solid var(--line);
     renderMiniList("map-mini-list", Object.keys(CARDS));
   }
 
+  function renderDeptZoom(id){
+    var cv = document.getElementById("deptZoomCanvas");
+    if(!cv || !cv.getContext) return;
+    var ctx = cv.getContext("2d");
+    var W = cv.width, H = cv.height, STEP = 3, SCALE = 2.3;
+    var c = HAITI_CENTROIDS[id];
+    if(!c) return;
+    ctx.fillStyle = "#0E1E3A";
+    ctx.fillRect(0,0,W,H);
+    ctx.save();
+    ctx.translate(W/2, H/2);
+    ctx.scale(SCALE, SCALE);
+    ctx.translate(-c[0], -c[1]);
+    for(var py=0; py<480; py+=STEP){
+      for(var px=0; px<600; px+=STEP){
+        if(pointInPoly(px+STEP/2, py+STEP/2, HAITI_OUTLINE)){
+          var hit = nearestDeptXY(px+STEP/2, py+STEP/2);
+          ctx.fillStyle = hit === id ? "#FFD400" : "rgba(60,55,80,.85)";
+          ctx.fillRect(px,py,STEP+1,STEP+1);
+        }
+      }
+    }
+    ctx.restore();
+    var dict = STR[lang];
+    var label = d[lang];
+    ctx.font = "800 24px Manrope,sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#0A1E54";
+    ctx.fillText(label, W/2, H/2);
+  }
+
   function openDeptDetail(id){
     var d = DEPTS.filter(function(x){ return x.id === id; })[0];
     if(!d) return;
     document.getElementById("deptDetailName").textContent = d[lang];
-    var color = DEPT_PIN_COLOR[id] || "#2A9D8F";
-    document.getElementById("deptDetailPinWrap").innerHTML =
-      '<div style="width:70px;height:70px;border-radius:50%;background:'+color+';margin:0 auto 10px;display:grid;place-items:center;font-size:1.6rem;color:#fff;box-shadow:0 10px 24px rgba(0,0,0,.35)">📍</div>';
+    renderDeptZoom(id);
     var stats = DEPT_STATS[id] || {total:0,checking:0,info:0};
     document.getElementById("deptStatTotal").textContent = stats.total;
     document.getElementById("deptStatChecking").textContent = stats.checking;
